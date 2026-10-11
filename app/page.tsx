@@ -1,23 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
+  AlertTriangle,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  Bell,
   CalendarDays,
   Check,
   ChevronRight,
-  CircleHelp,
   Gauge,
   Home,
   Menu,
   Moon,
   Plus,
   RotateCcw,
+  Search,
   Settings2,
-  Sun,
+  Sparkles,
   Table,
   Target,
   TrendingUp,
@@ -25,6 +25,9 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import { useRunwayStore } from '@/src/store/useRunwayStore'
+import { ShockModal } from '@/src/components/ShockModal'
+import { CommandPalette } from '@/src/components/CommandPalette'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -34,17 +37,8 @@ const navItems = [
   { label: 'Health', href: '/health', icon: Gauge },
 ]
 
-const initialEvents = [
-  { day: 1, amount: '₹2,400', label: 'Freelance payout', tone: 'income' },
-  { day: 3, amount: '−₹120', label: 'Groceries', tone: 'expense' },
-  { day: 5, amount: '−₹199', label: 'Spotify renewal', tone: 'expense' },
-  { day: 9, amount: '−₹340', label: 'Food & drinks', tone: 'expense' },
-  { day: 12, amount: '−₹850', label: 'Phone bill', tone: 'bill' },
-  { day: 16, amount: '₹3,600', label: 'Salary', tone: 'income' },
-  { day: 20, amount: '−₹499', label: 'Internet bill', tone: 'bill' },
-]
-
 function Sidebar({ mobile = false }: { mobile?: boolean }) {
+  const resetDemo = useRunwayStore((s) => s.resetDemo)
   return (
     <nav className={mobile ? 'mobile-nav' : 'sidebar'} aria-label="Primary navigation">
       {!mobile && (
@@ -68,7 +62,13 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
       </div>
       {!mobile && (
         <div className="sidebar-bottom">
-          <a href="#" className="nav-link"><Settings2 size={18} /> Settings</a>
+          <button
+            onClick={resetDemo}
+            className="text-button subtle"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+          >
+            <RotateCcw size={15} /> Reset Demo State
+          </button>
           <div className="profile">
             <span className="avatar">AS</span>
             <span><strong>Arjun S.</strong><small>Personal runway</small></span>
@@ -81,52 +81,44 @@ function Sidebar({ mobile = false }: { mobile?: boolean }) {
 }
 
 export default function Page() {
-  const [currentDay, setCurrentDay] = useState(9)
-  const [activeDay, setActiveDay] = useState(9)
-  const [events, setEvents] = useState(initialEvents)
+  const currentDay = useRunwayStore((s) => s.currentDay)
+  const activeDay = useRunwayStore((s) => s.activeDay)
+  const balance = useRunwayStore((s) => s.balance)
+  const transactions = useRunwayStore((s) => s.transactions)
+  const commitments = useRunwayStore((s) => s.commitments)
+  const goals = useRunwayStore((s) => s.goals)
+  const advanceDay = useRunwayStore((s) => s.advanceDay)
+  const fastForward = useRunwayStore((s) => s.fastForward)
+  const setActiveDay = useRunwayStore((s) => s.setActiveDay)
+  const getDailyAllowance = useRunwayStore((s) => s.getDailyAllowance)
+  const getEndForecast = useRunwayStore((s) => s.getEndForecast)
+  const triggerRandomShock = useRunwayStore((s) => s.triggerRandomShock)
+
   const [showTable, setShowTable] = useState(false)
-  const [quickAddOpen, setQuickAddOpen] = useState(false)
-  const [quickAmount, setQuickAmount] = useState('')
-  const [quickLabel, setQuickLabel] = useState('')
-  const [quickType, setQuickType] = useState('expense')
+  const [cmdOpen, setCmdOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const handleAdvanceDay = () => {
-    if (currentDay < 30) {
-      const nextDay = currentDay + 1
-      setCurrentDay(nextDay)
-      setActiveDay(nextDay)
-      setToastMessage(`Day advanced to Day ${nextDay} of 30`)
-      setTimeout(() => setToastMessage(null), 3000)
-    }
+  useEffect(() => {
+    const handleOpenCmd = () => setCmdOpen(true)
+    window.addEventListener('open-command-palette', handleOpenCmd)
+    return () => window.removeEventListener('open-command-palette', handleOpenCmd)
+  }, [])
+
+  const dailyAllowance = getDailyAllowance()
+  const forecastEnd = getEndForecast()
+  const selectedDayTransactions = transactions.filter((t) => t.day === activeDay)
+
+  const handleAdvance = () => {
+    advanceDay()
+    setToastMessage(`Advanced to Day ${currentDay + 1}`)
+    setTimeout(() => setToastMessage(null), 2500)
   }
 
   const handleFastForward = () => {
-    setCurrentDay(30)
-    setActiveDay(30)
+    fastForward(30)
     setToastMessage('Fast-forwarded to Day 30!')
-    setTimeout(() => setToastMessage(null), 3000)
+    setTimeout(() => setToastMessage(null), 2500)
   }
-
-  const handleQuickAdd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!quickAmount || !quickLabel) return
-    const num = Number(quickAmount)
-    const newEvent = {
-      day: currentDay,
-      amount: quickType === 'income' ? `+₹${num.toLocaleString('en-IN')}` : `−₹${num.toLocaleString('en-IN')}`,
-      label: quickLabel,
-      tone: quickType,
-    }
-    setEvents([newEvent, ...events])
-    setQuickAmount('')
-    setQuickLabel('')
-    setQuickAddOpen(false)
-    setToastMessage(`Logged ${quickLabel} (₹${num}) on Day ${currentDay}`)
-    setTimeout(() => setToastMessage(null), 3000)
-  }
-
-  const selectedDayEvents = events.filter((e) => e.day === activeDay)
 
   return (
     <div className="app-shell">
@@ -147,17 +139,25 @@ export default function Page() {
             <span className="day-pill">
               <span className="pulse-dot" /> Day {currentDay} <span className="muted">of 30</span>
             </span>
-            <button className="text-button" onClick={handleAdvanceDay}>
+            <button className="text-button" onClick={handleAdvance}>
               <CalendarDays size={15} /> Advance day
             </button>
             <button className="text-button subtle" onClick={handleFastForward}>
               Fast-forward <ArrowRight size={15} />
             </button>
             <button
-              className="primary-button"
-              onClick={() => setQuickAddOpen(true)}
+              className="outline-button"
+              onClick={triggerRandomShock}
+              title="Test unexpected expense shock"
+              style={{ color: 'var(--danger)', borderColor: 'rgba(251, 113, 133, 0.3)' }}
             >
-              <Plus size={17} /> Quick add
+              <AlertTriangle size={15} /> Life Happens
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => setCmdOpen(true)}
+            >
+              <Plus size={17} /> Quick add (⌘K)
             </button>
           </div>
         </header>
@@ -179,9 +179,10 @@ export default function Page() {
             <div className="day-strip" role="list" aria-label="Runway days">
               {Array.from({ length: 30 }, (_, index) => {
                 const day = index + 1
+                const hasTransactions = transactions.some((t) => t.day === day)
                 const status =
                   day < currentDay
-                    ? day === 3 || day === 5
+                    ? hasTransactions
                       ? 'spent'
                       : 'healthy'
                     : day === currentDay
@@ -208,17 +209,17 @@ export default function Page() {
               <span><i className="key-dot risk" /> Risk building</span>
               {activeDay !== currentDay && (
                 <span style={{ marginLeft: 'auto', color: 'var(--primary)' }}>
-                  Viewing Day {activeDay} ({selectedDayEvents.length} events)
+                  Viewing Day {activeDay} ({selectedDayTransactions.length} events)
                 </span>
               )}
             </div>
           </section>
 
-          {/* Inspected Day Banner if different from today */}
+          {/* Inspected Day Banner */}
           {activeDay !== currentDay && (
             <div style={{ marginTop: '12px', padding: '12px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px' }}>
-                <strong>Inspecting Day {activeDay}:</strong> {selectedDayEvents.length > 0 ? selectedDayEvents.map(e => `${e.label} (${e.amount})`).join(', ') : 'No transactions recorded on this day.'}
+                <strong>Inspecting Day {activeDay}:</strong> {selectedDayTransactions.length > 0 ? selectedDayTransactions.map(e => `${e.label} (${e.amount})`).join(', ') : 'No transactions recorded on this day.'}
               </span>
               <button className="text-button subtle" onClick={() => setActiveDay(currentDay)}>
                 Back to today
@@ -226,20 +227,20 @@ export default function Page() {
             </div>
           )}
 
-          {/* Hero Allowance & Balance Bento */}
+          {/* Hero Allowance Bento */}
           <section className="hero-grid">
             <article className="card allowance-card">
               <div className="allowance-copy">
                 <p className="eyebrow lime-text">SAFE TO SPEND TODAY</p>
                 <div className="allowance-number">
-                  ₹{Math.max(0, 187 - (currentDay > 9 ? (currentDay - 9) * 4 : 0))}
+                  ₹{dailyAllowance}
                   <span>/ day</span>
                 </div>
                 <p className="hero-caption">
                   <TrendingUp size={15} /> You&apos;re ₹340 ahead of pace
                 </p>
               </div>
-              <div className="allowance-ring" aria-label="62 percent of today's allowance used">
+              <div className="allowance-ring" aria-label="Allowance usage ring">
                 <div>
                   <strong>62%</strong>
                   <small>used</small>
@@ -250,9 +251,7 @@ export default function Page() {
                 <strong>₹300</strong>
                 <span className="divider-dot" />
                 <span>Left to spend</span>
-                <strong className="lime-text">
-                  ₹{Math.max(0, 187 - (currentDay > 9 ? (currentDay - 9) * 4 : 0))}
-                </strong>
+                <strong className="lime-text">₹{dailyAllowance}</strong>
               </div>
             </article>
 
@@ -260,7 +259,7 @@ export default function Page() {
               <div className="card-heading">
                 <div>
                   <p className="eyebrow violet-text">CURRENT BALANCE</p>
-                  <h2>₹5,400</h2>
+                  <h2>₹{balance.toLocaleString('en-IN')}</h2>
                 </div>
                 <span className="balance-icon">
                   <WalletCards size={17} />
@@ -275,15 +274,17 @@ export default function Page() {
                 <strong>₹2,100</strong>
               </div>
               <div className="mini-progress">
-                <span />
+                <span style={{ width: `${Math.min(100, Math.max(10, (balance / 10000) * 100))}%` }} />
               </div>
-              <p className="muted balance-note">70% of your starting fuel remains</p>
+              <p className="muted balance-note">
+                {Math.round((balance / 10000) * 100)}% of your starting ₹10,000 fuel remains
+              </p>
             </article>
           </section>
 
           {/* Dashboard Grid */}
           <div className="dashboard-grid">
-            {/* Runway Chart */}
+            {/* Forecast Chart */}
             <section className="card runway-card" aria-labelledby="runway-heading">
               <div className="chart-header">
                 <div>
@@ -308,7 +309,7 @@ export default function Page() {
                 <div className="chart-wrap">
                   <svg viewBox="0 0 760 270" role="img" preserveAspectRatio="none">
                     <title id="chart-title">Thirty day balance forecast</title>
-                    <desc id="chart-desc">Your balance trends from 5,400 rupees today to an estimated 1,180 rupees on day 30.</desc>
+                    <desc id="chart-desc">Your balance trends from {balance} rupees today to an estimated {forecastEnd} rupees on day 30.</desc>
                     <defs>
                       <linearGradient id="chartBand" x1="0" x2="0" y1="0" y2="1">
                         <stop offset="0" stopColor="#C6F432" stopOpacity=".15" />
@@ -365,9 +366,9 @@ export default function Page() {
                   {[1, 5, 9, 14, 20, 25, 30].map((d) => (
                     <div className="transaction-row" key={d}>
                       <span>Day {d}</span>
-                      <strong>₹{Math.round(5400 - (d / 30) * 4220).toLocaleString('en-IN')}</strong>
-                      <span className="muted">₹{Math.round(4800 - (d / 30) * 4400).toLocaleString('en-IN')}</span>
-                      <span className="safe-text">₹{Math.round(5800 - (d / 30) * 3800).toLocaleString('en-IN')}</span>
+                      <strong>₹{Math.round(balance - (d / 30) * 4220).toLocaleString('en-IN')}</strong>
+                      <span className="muted">₹{Math.round(balance * 0.85).toLocaleString('en-IN')}</span>
+                      <span className="safe-text">₹{Math.round(balance * 1.05).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
@@ -375,13 +376,15 @@ export default function Page() {
 
               <p className="chart-note">
                 <span className="note-check"><Check size={12} /></span>
-                Your forecast stays above the ₹1,000 shock cushion across all 30 days.
+                {forecastEnd > 1000
+                  ? `Your forecast ends at ₹${forecastEnd.toLocaleString('en-IN')}, above the ₹1,000 shock cushion.`
+                  : `Warning: Forecast ends at ₹${forecastEnd.toLocaleString('en-IN')}, dropping below safety buffer.`}
               </p>
             </section>
 
             {/* Side Stack */}
             <div className="side-stack">
-              {/* Upcoming */}
+              {/* Upcoming Commitments */}
               <section className="card upcoming-card">
                 <div className="section-heading">
                   <div>
@@ -393,15 +396,15 @@ export default function Page() {
                   </a>
                 </div>
                 <div className="event-list">
-                  {events.slice(3, 6).map((event) => (
-                    <div className="event-row" key={`${event.day}-${event.label}`}>
-                      <div className={`event-day ${event.tone}`}>D{event.day}</div>
+                  {commitments.slice(0, 3).map((comm) => (
+                    <div className="event-row" key={comm.id}>
+                      <div className="event-day bill">D{comm.day}</div>
                       <div className="event-copy">
-                        <strong>{event.label}</strong>
-                        <small>{event.day >= currentDay ? `Due in ${event.day - currentDay} days` : 'Past event'}</small>
+                        <strong>{comm.label}</strong>
+                        <small>{comm.paid ? 'Paid' : comm.dueText}</small>
                       </div>
-                      <strong className={event.tone === 'income' ? 'income-text' : ''}>
-                        {event.amount}
+                      <strong className={comm.paid ? 'muted' : ''}>
+                        ₹{comm.amount.toLocaleString('en-IN')}
                       </strong>
                     </div>
                   ))}
@@ -419,89 +422,34 @@ export default function Page() {
                     <ArrowRight size={17} />
                   </a>
                 </div>
-                <div className="goal-row">
-                  <div className="goal-icon">⌁</div>
-                  <div className="goal-copy">
-                    <strong>Headphones</strong>
-                    <small>₹3,200 of ₹5,000</small>
-                    <div className="goal-progress"><span /></div>
+                {goals.slice(0, 2).map((goal) => (
+                  <div className="goal-row" key={goal.id}>
+                    <div className={`goal-icon ${goal.color === 'violet' ? 'violet' : ''}`}>
+                      {goal.color === 'violet' ? '⌂' : '⌁'}
+                    </div>
+                    <div className="goal-copy">
+                      <strong>{goal.name}</strong>
+                      <small>₹{goal.saved.toLocaleString('en-IN')} of ₹{goal.target.toLocaleString('en-IN')}</small>
+                      <div className={`goal-progress ${goal.color === 'violet' ? 'violet-progress' : ''}`}>
+                        <span style={{ width: `${Math.round((goal.saved / goal.target) * 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="goal-eta">
+                      <strong>{goal.eta}</strong>
+                      <small>on track</small>
+                    </div>
                   </div>
-                  <div className="goal-eta">
-                    <strong>Day 24</strong>
-                    <small>on track</small>
-                  </div>
-                </div>
-                <div className="goal-row">
-                  <div className="goal-icon violet">⌂</div>
-                  <div className="goal-copy">
-                    <strong>Emergency buffer</strong>
-                    <small>₹1,000 of ₹2,500</small>
-                    <div className="goal-progress violet-progress"><span /></div>
-                  </div>
-                  <div className="goal-eta">
-                    <strong>Day 30</strong>
-                    <small>68% pace</small>
-                  </div>
-                </div>
+                ))}
               </section>
             </div>
           </div>
         </div>
 
-        {/* Quick Add Modal */}
-        {quickAddOpen && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center', zIndex: 100 }}>
-            <div className="card" style={{ width: '90%', maxWidth: '420px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0, font: '700 18px Sora' }}>Quick Add Transaction</h3>
-                <button className="icon-button" onClick={() => setQuickAddOpen(false)}>
-                  <X size={16} />
-                </button>
-              </div>
-              <form onSubmit={handleQuickAdd} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div className="form-group">
-                  <label>Label</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Chai, Groceries, Movie"
-                    value={quickLabel}
-                    onChange={(e) => setQuickLabel(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="150"
-                    value={quickAmount}
-                    onChange={(e) => setQuickAmount(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Type</label>
-                  <select
-                    value={quickType}
-                    onChange={(e) => setQuickType(e.target.value)}
-                  >
-                    <option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                    <option value="bill">Bill</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button type="button" className="outline-button" style={{ flex: 1 }} onClick={() => setQuickAddOpen(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="primary-button" style={{ flex: 1, justifyContent: 'center' }}>
-                    Save Event
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* Global Life Happens Shock Modal */}
+        <ShockModal />
+
+        {/* Global ⌘K Command Palette */}
+        <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} />
 
         {/* Toast */}
         {toastMessage && (

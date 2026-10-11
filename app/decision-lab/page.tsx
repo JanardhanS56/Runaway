@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   ArrowDownRight,
   ArrowRight,
@@ -23,6 +24,9 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import { useRunwayStore } from '@/src/store/useRunwayStore'
+import { ShockModal } from '@/src/components/ShockModal'
+import { CommandPalette } from '@/src/components/CommandPalette'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -41,6 +45,7 @@ const presets = [
 ]
 
 function Sidebar() {
+  const resetDemo = useRunwayStore((s) => s.resetDemo)
   return (
     <nav className="sidebar" aria-label="Primary navigation">
       <div className="brand">
@@ -61,7 +66,13 @@ function Sidebar() {
         ))}
       </div>
       <div className="sidebar-bottom">
-        <a href="#" className="nav-link"><Settings2 size={18} /> Settings</a>
+        <button
+          onClick={resetDemo}
+          className="text-button subtle"
+          style={{ width: '100%', justifyContent: 'flex-start' }}
+        >
+          <RotateCcw size={15} /> Reset Demo State
+        </button>
         <div className="profile">
           <span className="avatar">AS</span>
           <span><strong>Arjun S.</strong><small>Personal runway</small></span>
@@ -91,22 +102,35 @@ function MobileNav() {
   )
 }
 
-export default function DecisionLabPage() {
+function DecisionLabContent() {
+  const searchParams = useSearchParams()
+  const baseBalance = useRunwayStore((s) => s.balance)
+  const currentDay = useRunwayStore((s) => s.currentDay)
+  const baseAllowance = useRunwayStore((s) => s.getDailyAllowance())
+  const baseForecast = useRunwayStore((s) => s.getEndForecast())
+  const commitDecision = useRunwayStore((s) => s.commitDecision)
+
   const [decisionName, setDecisionName] = useState('Sneakers')
   const [amount, setAmount] = useState(2499)
   const [day, setDay] = useState(10)
   const [decisionType, setDecisionType] = useState('expense')
-  const [committed, setCommitted] = useState(false)
+  const [committedToast, setCommittedToast] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
 
-  // Simulation calculations
-  const baseBalance = 5400
-  const baseAllowance = 187
-  const baseForecast = 1180
-  const baseRisk = 12
-  const baseHealth = 82
+  // URL query pre-fill: e.g. /decision-lab?cancel=Spotify&amount=199
+  useEffect(() => {
+    const cancelName = searchParams.get('cancel')
+    const cancelAmount = searchParams.get('amount')
+    if (cancelName) {
+      setDecisionName(`Cancel ${cancelName}`)
+      setAmount(-(Number(cancelAmount) || 199))
+      setDecisionType('subscription')
+      setDay(currentDay + 1)
+    }
+  }, [searchParams, currentDay])
 
   const simulatedBalance = decisionType === 'subscription' && amount < 0
-    ? baseBalance + 119
+    ? baseBalance + Math.abs(amount)
     : baseBalance - amount
 
   const daysLeft = Math.max(1, 30 - day)
@@ -114,12 +138,13 @@ export default function DecisionLabPage() {
   const simulatedAllowance = Math.max(0, baseAllowance - allowanceImpact)
 
   const simulatedForecast = decisionType === 'subscription' && amount < 0
-    ? baseForecast + 119
+    ? baseForecast + Math.abs(amount)
     : baseForecast - amount
 
+  const baseRisk = 12
+  const baseHealth = 82
   const riskIncrease = Math.round((amount / 3000) * 55)
   const simulatedRisk = Math.min(95, Math.max(5, baseRisk + (amount > 0 ? riskIncrease : -5)))
-
   const healthImpact = Math.round((amount / 2500) * 35)
   const simulatedHealth = Math.min(99, Math.max(15, baseHealth - (amount > 0 ? healthImpact : -4)))
 
@@ -139,10 +164,15 @@ export default function DecisionLabPage() {
     setDecisionType(p.type)
   }
 
-  const resetDraft = () => {
-    setDecisionName('')
-    setAmount(0)
-    setDay(10)
+  const handleCommit = () => {
+    commitDecision({
+      label: decisionName || 'Simulated Choice',
+      amount,
+      day,
+      type: decisionType,
+    })
+    setCommittedToast(true)
+    setTimeout(() => setCommittedToast(false), 3000)
   }
 
   return (
@@ -158,16 +188,10 @@ export default function DecisionLabPage() {
           </div>
           <div className="top-actions">
             <span className="day-pill">
-              <span className="pulse-dot" /> Day 9 <span className="muted">of 30</span>
+              <span className="pulse-dot" /> Day {currentDay} <span className="muted">of 30</span>
             </span>
-            <button className="outline-button" onClick={resetDraft}>
-              <RotateCcw size={14} /> Reset draft
-            </button>
-            <button
-              className="primary-button"
-              onClick={() => setCommitted(true)}
-            >
-              <Check size={16} /> Commit to runway
+            <button className="primary-button" onClick={handleCommit}>
+              <Check size={16} /> Commit to live runway
             </button>
           </div>
         </header>
@@ -232,13 +256,13 @@ export default function DecisionLabPage() {
                 <input
                   id="dec-day"
                   type="range"
-                  min="9"
+                  min={currentDay}
                   max="30"
                   value={day}
                   onChange={(e) => setDay(Number(e.target.value))}
                 />
                 <div className="range-labels">
-                  <span>Today (Day 9)</span>
+                  <span>Today (Day {currentDay})</span>
                   <span>End of month (Day 30)</span>
                 </div>
               </div>
@@ -303,7 +327,7 @@ export default function DecisionLabPage() {
                 </div>
               </div>
 
-              {/* Safer Alternatives Box */}
+              {/* Smart Advisor */}
               {isSevere && (
                 <div style={{ marginTop: '10px', padding: '14px', background: 'rgba(124, 92, 255, 0.08)', borderRadius: '12px', border: '1px solid rgba(124, 92, 255, 0.2)' }}>
                   <p className="eyebrow violet-text" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -369,17 +393,15 @@ export default function DecisionLabPage() {
                     strokeDasharray="6 4"
                   />
 
-                  {/* Marker Lines */}
-                  <line className="today-line" x1="225" y1="25" x2="225" y2="225" />
-                  <circle className="today-point" cx="225" cy="80" r="5" />
+                  <line className="today-line" x1={34 + (currentDay / 30) * 706} y1="25" x2={34 + (currentDay / 30) * 706} y2="225" />
+                  <circle className="today-point" cx={34 + (currentDay / 30) * 706} cy={80} r="5" />
 
-                  {/* Labels */}
                   <text x="2" y="42">₹6k</text>
                   <text x="2" y="96">₹4k</text>
                   <text x="2" y="150">₹2k</text>
                   <text x="7" y="204">₹0</text>
                   <text x="31" y="248">Day 1</text>
-                  <text x="213" y="248">9 (Today)</text>
+                  <text x="213" y="248">Day {currentDay}</text>
                   <text x="375" y="248">16</text>
                   <text x="535" y="248">23</text>
                   <text x="701" y="248">30</text>
@@ -390,7 +412,7 @@ export default function DecisionLabPage() {
                 <p style={{ margin: 0, fontSize: '11px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={14} className="violet-text" />
                   <span>
-                    Simulating <strong>{decisionName || 'Choice'}</strong> on <strong>Day {day}</strong> reduces your daily safe-to-spend allowance from <strong>₹{baseAllowance}</strong> to <strong className="lime-text">₹{simulatedAllowance}</strong>.
+                    Simulating <strong>{decisionName || 'Choice'}</strong> on <strong>Day {day}</strong> reduces daily safe-to-spend allowance from <strong>₹{baseAllowance}</strong> to <strong className="lime-text">₹{simulatedAllowance}</strong>.
                   </span>
                 </p>
               </div>
@@ -398,10 +420,13 @@ export default function DecisionLabPage() {
           </div>
         </div>
 
-        {committed && (
+        <ShockModal />
+        <CommandPalette isOpen={cmdOpen} onClose={() => setCmdOpen(false)} />
+
+        {committedToast && (
           <div className="goal-toast" role="status">
-            <span><Check size={14} /> Decision committed to your live ledger!</span>
-            <button aria-label="Dismiss" onClick={() => setCommitted(false)}>
+            <span><Check size={14} /> Decision committed to your live runway & ledger!</span>
+            <button aria-label="Dismiss" onClick={() => setCommittedToast(false)}>
               <X size={14} />
             </button>
           </div>
@@ -409,5 +434,13 @@ export default function DecisionLabPage() {
       </main>
       <MobileNav />
     </div>
+  )
+}
+
+export default function DecisionLabPage() {
+  return (
+    <Suspense fallback={<div className="app-shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>Loading Decision Lab...</div>}>
+      <DecisionLabContent />
+    </Suspense>
   )
 }
