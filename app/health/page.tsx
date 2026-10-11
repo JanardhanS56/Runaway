@@ -18,6 +18,7 @@ import {
 import { useRunwayStore } from '@/src/store/useRunwayStore'
 import { ShockModal } from '@/src/components/ShockModal'
 import { CommandPalette } from '@/src/components/CommandPalette'
+import { useHydrated } from '@/src/lib/useHydrated'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -95,12 +96,13 @@ export default function HealthPage() {
   const getRiskPercentage = useRunwayStore((s) => s.getRiskPercentage)
   const getEndForecast = useRunwayStore((s) => s.getEndForecast)
 
+  const hydrated = useHydrated()
   const [expanded, setExpanded] = useState<string | null>(null)
   const [cmdOpen, setCmdOpen] = useState(false)
 
-  const healthScore = getHealthScore()
-  const riskP = getRiskPercentage()
-  const forecast = getEndForecast()
+  const healthScore = hydrated ? getHealthScore() : 75
+  const riskP = hydrated ? getRiskPercentage() : 8
+  const forecast = hydrated ? getEndForecast() : 0
 
   const components = [
     {

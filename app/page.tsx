@@ -28,6 +28,7 @@ import {
 import { useRunwayStore } from '@/src/store/useRunwayStore'
 import { ShockModal } from '@/src/components/ShockModal'
 import { CommandPalette } from '@/src/components/CommandPalette'
+import { useHydrated } from '@/src/lib/useHydrated'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -94,6 +95,7 @@ export default function Page() {
   const getEndForecast = useRunwayStore((s) => s.getEndForecast)
   const triggerRandomShock = useRunwayStore((s) => s.triggerRandomShock)
 
+  const hydrated = useHydrated()
   const [showTable, setShowTable] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -104,9 +106,10 @@ export default function Page() {
     return () => window.removeEventListener('open-command-palette', handleOpenCmd)
   }, [])
 
-  const dailyAllowance = getDailyAllowance()
-  const forecastEnd = getEndForecast()
-  const selectedDayTransactions = transactions.filter((t) => t.day === activeDay)
+  // Gate all store-derived values on client hydration to prevent SSR mismatch
+  const dailyAllowance = hydrated ? getDailyAllowance() : 0
+  const forecastEnd = hydrated ? getEndForecast() : 0
+  const selectedDayTransactions = hydrated ? transactions.filter((t) => t.day === activeDay) : []
 
   const handleAdvance = () => {
     advanceDay()

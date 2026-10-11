@@ -20,6 +20,7 @@ import {
 import { useRunwayStore } from '@/src/store/useRunwayStore'
 import { ShockModal } from '@/src/components/ShockModal'
 import { CommandPalette } from '@/src/components/CommandPalette'
+import { useHydrated } from '@/src/lib/useHydrated'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -95,6 +96,7 @@ export default function GoalsPage() {
   const currentDay = useRunwayStore((s) => s.currentDay)
   const getDailyAllowance = useRunwayStore((s) => s.getDailyAllowance)
 
+  const hydrated = useHydrated()
   const [newGoalOpen, setNewGoalOpen] = useState(false)
   const [goalName, setGoalName] = useState('')
   const [goalTarget, setGoalTarget] = useState('')
@@ -102,9 +104,9 @@ export default function GoalsPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [cmdOpen, setCmdOpen] = useState(false)
 
-  const totalSaved = goals.reduce((sum, goal) => sum + goal.saved, 0)
-  const totalTarget = goals.reduce((sum, goal) => sum + goal.target, 0)
-  const dailyAllowance = getDailyAllowance()
+  const totalSaved = hydrated ? goals.reduce((sum, goal) => sum + goal.saved, 0) : 0
+  const totalTarget = hydrated ? goals.reduce((sum, goal) => sum + goal.target, 0) : 0
+  const dailyAllowance = hydrated ? getDailyAllowance() : 0
 
   const handleCreateGoal = (e: React.FormEvent) => {
     e.preventDefault()

@@ -25,6 +25,7 @@ import {
 import { useRunwayStore } from '@/src/store/useRunwayStore'
 import { ShockModal } from '@/src/components/ShockModal'
 import { CommandPalette } from '@/src/components/CommandPalette'
+import { useHydrated } from '@/src/lib/useHydrated'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -115,26 +116,29 @@ export default function MoneyPage() {
   const cancelSubscription = useRunwayStore((s) => s.cancelSubscription)
   const payCommitment = useRunwayStore((s) => s.payCommitment)
 
+  const hydrated = useHydrated()
   const [tab, setTab] = useState('Transactions')
   const [search, setSearch] = useState('')
   const [cmdOpen, setCmdOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const filtered = transactions.filter((item) =>
-    `${item.label} ${item.category} ${item.note}`.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = hydrated
+    ? transactions.filter((item) =>
+        `${item.label} ${item.category} ${item.note}`.toLowerCase().includes(search.toLowerCase())
+      )
+    : []
 
-  const totalSpent = transactions
-    .filter((t) => t.numAmount < 0)
-    .reduce((sum, t) => sum + Math.abs(t.numAmount), 0)
+  const totalSpent = hydrated
+    ? transactions.filter((t) => t.numAmount < 0).reduce((sum, t) => sum + Math.abs(t.numAmount), 0)
+    : 0
 
-  const totalIncome = transactions
-    .filter((t) => t.numAmount > 0)
-    .reduce((sum, t) => sum + t.numAmount, 0)
+  const totalIncome = hydrated
+    ? transactions.filter((t) => t.numAmount > 0).reduce((sum, t) => sum + t.numAmount, 0)
+    : 0
 
-  const unpaidCommitmentsTotal = commitments
-    .filter((c) => !c.paid)
-    .reduce((sum, c) => sum + c.amount, 0)
+  const unpaidCommitmentsTotal = hydrated
+    ? commitments.filter((c) => !c.paid).reduce((sum, c) => sum + c.amount, 0)
+    : 0
 
   const handleSimulateCancel = (sub: typeof subscriptions[0]) => {
     router.push(`/decision-lab?cancel=${encodeURIComponent(sub.label)}&amount=${sub.amount}`)

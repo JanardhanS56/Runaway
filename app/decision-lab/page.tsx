@@ -27,6 +27,7 @@ import {
 import { useRunwayStore } from '@/src/store/useRunwayStore'
 import { ShockModal } from '@/src/components/ShockModal'
 import { CommandPalette } from '@/src/components/CommandPalette'
+import { useHydrated } from '@/src/lib/useHydrated'
 
 const navItems = [
   { label: 'Cockpit', href: '/', icon: Home },
@@ -104,11 +105,18 @@ function MobileNav() {
 
 function DecisionLabContent() {
   const searchParams = useSearchParams()
-  const baseBalance = useRunwayStore((s) => s.balance)
+  const hydrated = useHydrated()
+  const _baseBalance = useRunwayStore((s) => s.balance)
+  const _getDailyAllowance = useRunwayStore((s) => s.getDailyAllowance)
+  const _getEndForecast = useRunwayStore((s) => s.getEndForecast)
   const currentDay = useRunwayStore((s) => s.currentDay)
-  const baseAllowance = useRunwayStore((s) => s.getDailyAllowance())
-  const baseForecast = useRunwayStore((s) => s.getEndForecast())
   const commitDecision = useRunwayStore((s) => s.commitDecision)
+
+  // Gate computed values on client hydration to prevent SSR mismatch
+  const baseBalance = hydrated ? _baseBalance : 0
+  const baseAllowance = hydrated ? _getDailyAllowance() : 0
+  const baseForecast = hydrated ? _getEndForecast() : 0
+
 
   const [decisionName, setDecisionName] = useState('Sneakers')
   const [amount, setAmount] = useState(2499)
