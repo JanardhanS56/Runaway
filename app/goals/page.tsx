@@ -1,0 +1,30 @@
+'use client'
+
+import { useState } from 'react'
+import { ArrowRight, CalendarDays, Check, ChevronDown, Home, Plus, Settings2, Target, WalletCards, X, Zap, Gauge } from 'lucide-react'
+
+const navItems = [
+  { label: 'Cockpit', href: '/', icon: Home },
+  { label: 'Decision Lab', href: '/decision-lab', icon: Zap },
+  { label: 'Money', href: '/money', icon: WalletCards },
+  { label: 'Goals', href: '/goals', icon: Target },
+  { label: 'Health', href: '/health', icon: Gauge },
+]
+
+const initialGoals = [
+  { name: 'Emergency buffer', detail: 'Your safety net', saved: 3200, target: 5000, eta: '18 days', color: 'lime', priority: 'Essential' },
+  { name: 'Goa weekend', detail: 'Trip in July', saved: 1850, target: 4000, eta: '31 days', color: 'violet', priority: 'Fun' },
+  { name: 'New laptop', detail: 'MacBook Air fund', saved: 740, target: 8500, eta: '112 days', color: 'blue', priority: 'Planned' },
+]
+
+function Sidebar() { return <nav className="sidebar" aria-label="Primary navigation"><div className="brand"><span className="brand-mark"><Zap size={15} fill="currentColor" /></span><span>Runway</span></div><div className="nav-items">{navItems.map(({ label, href, icon: Icon }) => <a href={href} key={label} className={`nav-link ${label === 'Goals' ? 'active' : ''}`} aria-current={label === 'Goals' ? 'page' : undefined}><Icon size={18} strokeWidth={1.8} /><span>{label}</span></a>)}</div><div className="sidebar-bottom"><a href="#" className="nav-link"><Settings2 size={18} /> Settings</a><div className="profile"><span className="avatar">AS</span><span><strong>Arjun S.</strong><small>Personal runway</small></span><ArrowRight size={15} /></div></div></nav> }
+function MobileNav() { return <nav className="mobile-nav" aria-label="Mobile navigation"><div className="mobile-nav-items">{navItems.map(({ label, href, icon: Icon }) => <a href={href} key={label} className={`nav-link ${label === 'Goals' ? 'active' : ''}`}><Icon size={18} /><span>{label === 'Decision Lab' ? 'Lab' : label}</span></a>)}</div></nav> }
+
+export default function GoalsPage() {
+  const [goals, setGoals] = useState(initialGoals)
+  const [pace, setPace] = useState(500)
+  const [added, setAdded] = useState(false)
+  const totalSaved = goals.reduce((sum, goal) => sum + goal.saved, 0)
+  const totalTarget = goals.reduce((sum, goal) => sum + goal.target, 0)
+  return <div className="app-shell"><Sidebar /><main className="main-content"><header className="topbar"><div className="topbar-left"><div><p className="eyebrow">YOUR RUNWAY</p><h1>Goals</h1></div></div><div className="top-actions"><span className="day-pill"><span className="pulse-dot" /> Day 9 <span className="muted">of 30</span></span><button className="text-button"><CalendarDays size={15} /> June 2026 <ChevronDown size={13} /></button><button className="primary-button" onClick={() => setAdded(true)}><Plus size={17} /> Add goal</button></div></header><div className="goals-content"><section className="goals-intro"><div><p className="eyebrow lime-text">SAVINGS PLAN</p><h2>Make room for what matters.</h2><p>Small, intentional transfers turn today&apos;s runway into tomorrow&apos;s options.</p></div><div className="goal-total"><span className="muted">Saved across goals</span><strong>₹{totalSaved.toLocaleString('en-IN')}</strong><small>{Math.round(totalSaved / totalTarget * 100)}% of your total target</small></div></section><section className="goals-overview"><div className="card goal-summary-card"><div className="summary-heading"><div><p className="eyebrow">TOTAL PROGRESS</p><h3>₹{totalSaved.toLocaleString('en-IN')} <span>of ₹{totalTarget.toLocaleString('en-IN')}</span></h3></div><span className="summary-icon"><Target size={17} /></span></div><div className="progress-track"><span style={{ width: `${totalSaved / totalTarget * 100}%` }} /></div><div className="summary-footer"><span><Check size={13} /> You&apos;re on track</span><strong>₹{pace.toLocaleString('en-IN')} / month</strong></div></div><div className="card tradeoff-card"><p className="eyebrow violet-text">THE TRADE-OFF</p><h3>How ambitious should we be?</h3><p>More saved now means less daily spending room.</p><label htmlFor="pace">Monthly goal pace <strong>₹{pace.toLocaleString('en-IN')}</strong></label><input id="pace" type="range" min="200" max="1000" step="50" value={pace} onChange={(event) => setPace(Number(event.target.value))} /><div className="range-labels"><span>More breathing room</span><span>Faster goals</span></div><div className="allowance-impact"><span>Daily allowance</span><strong>₹{Math.max(0, 187 - Math.round((pace - 500) / 50 * 4))}</strong><small>{pace > 500 ? '₹' + (Math.round((pace - 500) / 50 * 4)) + ' less per day' : 'Comfortable pace'}</small></div></div></section><div className="section-heading goals-section-heading"><div><p className="eyebrow">YOUR GOALS</p><h2>Progress, not pressure.</h2></div><button className="outline-button" onClick={() => setAdded(true)}><Plus size={14} /> New goal</button></div><section className="goal-list">{goals.map((goal) => { const progress = Math.round(goal.saved / goal.target * 100); return <article className="card goal-card" key={goal.name}><div className={`goal-orb ${goal.color}`}><Target size={19} /></div><div className="goal-main"><div className="goal-title"><div><span className="goal-priority">{goal.priority}</span><h3>{goal.name}</h3><p>{goal.detail}</p></div><button className="goal-menu" aria-label={`Options for ${goal.name}`}><span /><span /><span /></button></div><div className="goal-numbers"><strong>₹{goal.saved.toLocaleString('en-IN')}</strong><span>of ₹{goal.target.toLocaleString('en-IN')}</span><b>{progress}%</b></div><div className="goal-progress"><span className={goal.color} style={{ width: `${progress}%` }} /></div><div className="goal-meta"><span>Estimated completion <strong>{goal.eta}</strong></span><button>View details <ArrowRight size={13} /></button></div></div></article> })}</section>{added && <div className="goal-toast" role="status"><span><Check size={14} /> Goal added to your plan</span><button aria-label="Dismiss" onClick={() => setAdded(false)}><X size={14} /></button></div>}</div></main><MobileNav /></div>
+}
